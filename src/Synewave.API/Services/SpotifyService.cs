@@ -28,9 +28,9 @@ public class SpotifyService : ISpotifyService
 
     public string GetAuthorizationUrl(string state)
     {
-        var clientId = _config["Spotify:ClientId"]!;
-        var redirectUri = Uri.EscapeDataString(_config["Spotify:RedirectUri"]!);
-        var scopes = Uri.EscapeDataString("user-read-private user-read-email user-top-read user-read-currently-playing user-read-playback-state");
+var clientId = _config["Spotify:ClientId"] ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID")!;
+var clientSecret = _config["Spotify:ClientSecret"] ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET")!;
+var redirectUri = _config["Spotify:RedirectUri"] ?? Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI")!;
 
         return $"https://accounts.spotify.com/authorize?response_type=code&client_id={clientId}&scope={scopes}&redirect_uri={redirectUri}&state={state}";
     }
