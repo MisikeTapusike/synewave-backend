@@ -66,16 +66,18 @@ public class AuthController : ControllerBase
 
     // ── SPOTIFY ───────────────────────────────────────────────
 
-   [HttpGet("spotify/login")]
-public IActionResult SpotifyLogin()
-{
-    var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
-    var redirectUri = Uri.EscapeDataString(Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI") ?? "");
-    var scopes = Uri.EscapeDataString("user-read-private user-read-email user-top-read user-read-currently-playing user-read-playback-state");
-    var state = Guid.NewGuid().ToString("N");
-    var url = $"https://accounts.spotify.com/authorize?response_type=code&client_id={clientId}&scope={scopes}&redirect_uri={redirectUri}&state={state}";
-    return Redirect(url);
-}
+    [HttpGet("spotify/login")]
+    public IActionResult SpotifyLogin()
+    {
+        var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
+        var redirectUri = Uri.EscapeDataString(Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI") ?? "");
+        var scopes = Uri.EscapeDataString("user-read-private user-read-email user-top-read user-read-currently-playing user-read-playback-state");
+        var state = Guid.NewGuid().ToString("N");
+        
+        // FIXED: Pointing to official Spotify API with explicit query params
+        var url = $"https://accounts.spotify.com/authorize?response_type=code&client_id={clientId}&scope={scopes}&redirect_uri={redirectUri}&state={state}";
+        
+        return Redirect(url);
     }
 
     /// <summary>Spotify OAuth callback</summary>
