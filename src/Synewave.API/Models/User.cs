@@ -7,7 +7,13 @@ public class User
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
+
+    // Spotify
     public string? SpotifyId { get; set; }
+    public string? SpotifyAccessToken { get; set; }
+    public string? SpotifyRefreshToken { get; set; }
+    public DateTime? SpotifyTokenExpiresAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastActiveAt { get; set; } = DateTime.UtcNow;
 
