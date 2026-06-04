@@ -26,22 +26,27 @@ public class SpotifyService : ISpotifyService
         _http = http;
     }
 
+    private string GetClientId() =>
+        _config["Spotify:ClientId"] ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID")!;
+
+    private string GetClientSecret() =>
+        _config["Spotify:ClientSecret"] ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET")!;
+
+    private string GetRedirectUri() =>
+        _config["Spotify:RedirectUri"] ?? Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI")!;
+
     public string GetAuthorizationUrl(string state)
     {
-var clientId = _config["Spotify:ClientId"] ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID")!;
-var clientSecret = _config["Spotify:ClientSecret"] ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET")!;
-var redirectUri = _config["Spotify:RedirectUri"] ?? Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI")!;
+        var clientId = GetClientId();
+        var redirectUri = Uri.EscapeDataString(GetRedirectUri());
+        var scopes = Uri.EscapeDataString("user-read-private user-read-email user-top-read user-read-currently-playing user-read-playback-state");
 
         return $"https://accounts.spotify.com/authorize?response_type=code&client_id={clientId}&scope={scopes}&redirect_uri={redirectUri}&state={state}";
     }
 
     public async Task<SpotifyTokenResponse?> ExchangeCodeForTokenAsync(string code)
     {
-        var clientId = _config["Spotify:ClientId"]!;
-        var clientSecret = _config["Spotify:ClientSecret"]!;
-        var redirectUri = _config["Spotify:RedirectUri"]!;
-
-        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{GetClientId()}:{GetClientSecret()}"));
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://accounts.spotify.com/api/token");
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
@@ -49,7 +54,7 @@ var redirectUri = _config["Spotify:RedirectUri"] ?? Environment.GetEnvironmentVa
         {
             ["grant_type"] = "authorization_code",
             ["code"] = code,
-            ["redirect_uri"] = redirectUri
+            ["redirect_uri"] = GetRedirectUri()
         });
 
         var response = await _http.SendAsync(request);
@@ -61,9 +66,7 @@ var redirectUri = _config["Spotify:RedirectUri"] ?? Environment.GetEnvironmentVa
 
     public async Task<SpotifyTokenResponse?> RefreshTokenAsync(string refreshToken)
     {
-        var clientId = _config["Spotify:ClientId"]!;
-        var clientSecret = _config["Spotify:ClientSecret"]!;
-        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{GetClientId()}:{GetClientSecret()}"));
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://accounts.spotify.com/api/token");
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
