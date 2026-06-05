@@ -46,6 +46,7 @@ builder.Services.AddAuthorization();
 
 // ── SERVICES ──────────────────────────────────────────────────
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHttpClient<ISpotifyService, SpotifyService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 
 // ── CORS ──────────────────────────────────────────────────────
