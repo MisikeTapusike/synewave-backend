@@ -32,13 +32,13 @@ public class SpotifyService : ISpotifyService
     private string GetClientSecret() =>
         _config["Spotify:ClientSecret"] ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET")!;
 
-    private string GetRedirectUri() =>
+    private string Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI") ?? "" =>
         _config["Spotify:RedirectUri"] ?? Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI")!;
 
     public string GetAuthorizationUrl(string state)
     {
         var clientId = GetClientId();
-        var redirectUri = Uri.EscapeDataString(GetRedirectUri());
+        var redirectUri = Uri.EscapeDataString(Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI") ?? "");
         var scopes = Uri.EscapeDataString("user-read-private user-read-email user-top-read user-read-currently-playing user-read-playback-state");
 
         return $"https://accounts.spotify.com/authorize?response_type=code&client_id={clientId}&scope={scopes}&redirect_uri={redirectUri}&state={state}";
@@ -54,7 +54,7 @@ public class SpotifyService : ISpotifyService
         {
             ["grant_type"] = "authorization_code",
             ["code"] = code,
-            ["redirect_uri"] = GetRedirectUri()
+            ["redirect_uri"] = Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI") ?? ""
         });
 
         var response = await _http.SendAsync(request);
