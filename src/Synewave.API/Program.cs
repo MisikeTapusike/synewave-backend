@@ -8,12 +8,11 @@ using Synewave.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── DATABASE ──────────────────────────────────────────────────
+// ── DATABASE ──────────────────────────────────────────────
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? throw new InvalidOperationException("No database connection string found.");
 
-// Railway provides postgres:// URLs, convert to npgsql format
 if (connStr.StartsWith("postgres://") || connStr.StartsWith("postgresql://"))
 {
     var uri = new Uri(connStr);
@@ -24,7 +23,7 @@ if (connStr.StartsWith("postgres://") || connStr.StartsWith("postgresql://"))
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(connStr));
 
-// ── JWT AUTH ──────────────────────────────────────────────────
+// ── JWT AUTH ──────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? Environment.GetEnvironmentVariable("JWT_SECRET")
     ?? "synewave-super-secret-key-change-in-production-min-32-chars";
@@ -44,29 +43,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// ── SERVICES ──────────────────────────────────────────────────
+// ── SERVICES ──────────────────────────────────────────────
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddHttpClient<ISpotifyService, SpotifyService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddHttpClient<ISpotifyService, SpotifyService>();
 
-// ── CORS ──────────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────
 builder.Services.AddCors(opt =>
 {
     opt.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "https://*.railway.app",
-                "https://*.up.railway.app"
-            )
+        policy.SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrEmpty(origin)) return false;
+                var host = new Uri(origin).Host;
+                return host == "localhost"
+                    || host.EndsWith(".netlify.app")
+                    || host.EndsWith(".railway.app")
+                    || host.EndsWith(".up.railway.app");
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
     });
 });
 
-// ── SWAGGER ───────────────────────────────────────────────────
+// ── SWAGGER ──────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -98,7 +100,7 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// ── AUTO MIGRATE ON STARTUP ───────────────────────────────────
+// ── AUTO MIGRATE ON STARTUP ──────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -113,7 +115,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// ── MIDDLEWARE ────────────────────────────────────────────────
+// ── MIDDLEWARE ───────────────────────────────────────────
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -126,7 +128,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Health check endpoint for Railway
 app.MapGet("/health", () => Results.Ok(new { Status = "OK", Timestamp = DateTime.UtcNow }));
 
 app.Run();
