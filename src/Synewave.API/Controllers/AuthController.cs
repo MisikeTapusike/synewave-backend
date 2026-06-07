@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
     {
         var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID") ?? "";
         var redirectUri = Uri.EscapeDataString(Environment.GetEnvironmentVariable("SPOTIFY_REDIRECT_URI") ?? "");
-        var scopes = Uri.EscapeDataString("user-read-private user-read-email user-top-read user-read-currently-playing user-read-playback-state");
+        var scopes = Uri.EscapeDataString("user-read-private user-read-email user-top-read user-read-currently-playing user-read-playback-state streaming user-modify-playback-state");
         var state = Guid.NewGuid().ToString("N");
         var url = $"https://accounts.spotify.com/authorize?response_type=code&client_id={clientId}&scope={scopes}&redirect_uri={redirectUri}&state={state}";
         return Redirect(url);
@@ -176,6 +176,62 @@ public class AuthController : ControllerBase
         return Ok(System.Text.Json.JsonSerializer.Deserialize<object>(body));
     }
 
+    // Vrati platny Spotify access token pre frontend (Web Playback SDK).
+    // Ak token expiroval, obnovi ho cez refresh_token.
+    [HttpGet("spotify/token")]
+    [Authorize]
+    public async Task<IActionResult> GetSpotifyToken()
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var user = await _db.Users.FindAsync(userId);
+        if (user?.SpotifyAccessToken == null)
+            return BadRequest(new { error = "Spotify ucet nie je prepojeny." });
+
+        var freshToken = await EnsureValidSpotifyToken(user);
+        if (freshToken == null)
+            return BadRequest(new { error = "Nepodarilo sa obnovit Spotify token. Prihlas sa znovu cez Spotify." });
+
+        return Ok(new { access_token = freshToken });
+    }
+
+    // Skontroluje expiraciu a podla potreby obnovi access token.
+    private async Task<string?> EnsureValidSpotifyToken(User user)
+    {
+        if (user.SpotifyTokenExpiresAt != null && user.SpotifyTokenExpiresAt > DateTime.UtcNow.AddMinutes(2))
+            return user.SpotifyAccessToken;
+
+        if (string.IsNullOrEmpty(user.SpotifyRefreshToken))
+            return user.SpotifyAccessToken;
+
+        var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID") ?? "";
+        var clientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET") ?? "";
+
+        using var http = new System.Net.Http.HttpClient();
+        var credentials = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://accounts.spotify.com/api/token");
+        req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
+        req.Content = new System.Net.Http.FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["refresh_token"] = user.SpotifyRefreshToken
+        });
+
+        var res = await http.SendAsync(req);
+        if (!res.IsSuccessStatusCode) return null;
+
+        var body = await res.Content.ReadAsStringAsync();
+        var tokens = System.Text.Json.JsonSerializer.Deserialize<SpotifyTokenResult>(body,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        if (tokens == null) return null;
+
+        user.SpotifyAccessToken = tokens.Access_Token;
+        if (!string.IsNullOrEmpty(tokens.Refresh_Token)) user.SpotifyRefreshToken = tokens.Refresh_Token;
+        user.SpotifyTokenExpiresAt = DateTime.UtcNow.AddSeconds(tokens.Expires_In);
+        await _db.SaveChangesAsync();
+
+        return user.SpotifyAccessToken;
+    }
+
     [HttpGet("spotify/now-playing")]
     [Authorize]
     public async Task<IActionResult> GetNowPlaying()
@@ -184,6 +240,8 @@ public class AuthController : ControllerBase
         var user = await _db.Users.FindAsync(userId);
         if (user?.SpotifyAccessToken == null)
             return Ok(new { success = true, data = (object?)null });
+
+        await EnsureValidSpotifyToken(user);
 
         using var http = new System.Net.Http.HttpClient();
         var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get,
