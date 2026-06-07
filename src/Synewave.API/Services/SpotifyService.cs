@@ -10,20 +10,6 @@ public interface ISpotifyService
     string GetAuthorizationUrl(string state);
     Task<SpotifyTokenResponse?> ExchangeCodeForTokenAsync(string code);
     Task<SpotifyUserProfile?> GetUserProfileAsync(string accessToken);
-    Task<List<SpotifyTrack>> GetTopTracksAsync(string accessToken, string timeRan
-cat > ~/Desktop/synewave-backend/src/Synewave.API/Services/SpotifyService.cs << 'ENDOFFILE'
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using Synewave.API.Models;
-
-namespace Synewave.API.Services;
-
-public interface ISpotifyService
-{
-    string GetAuthorizationUrl(string state);
-    Task<SpotifyTokenResponse?> ExchangeCodeForTokenAsync(string code);
-    Task<SpotifyUserProfile?> GetUserProfileAsync(string accessToken);
     Task<List<SpotifyTrack>> GetTopTracksAsync(string accessToken, string timeRange = "medium_term", int limit = 20);
     Task<SpotifyCurrentlyPlaying?> GetCurrentlyPlayingAsync(string accessToken);
     Task<SpotifyTokenResponse?> RefreshTokenAsync(string refreshToken);
