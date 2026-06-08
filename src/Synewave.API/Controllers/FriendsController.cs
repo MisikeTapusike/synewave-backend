@@ -23,7 +23,7 @@ public class FriendsController : ControllerBase
     {
         var userId = UserId;
         var friends = await _db.Friendships
-            .Where(f => (f.RequesterId == userId || f.AddresseeId == userId) && f.Status == 1)
+            .Where(f => (f.RequesterId == userId || f.AddresseeId == userId) && (int)f.Status == 1)
             .Select(f => new {
                 UserId       = f.RequesterId == userId ? f.AddresseeId : f.RequesterId,
                 FriendshipId = f.Id
@@ -59,7 +59,7 @@ public class FriendsController : ControllerBase
     {
         var userId = UserId;
         var friendIds = await _db.Friendships
-            .Where(f => (f.RequesterId == userId || f.AddresseeId == userId) && f.Status == 1)
+            .Where(f => (f.RequesterId == userId || f.AddresseeId == userId) && (int)f.Status == 1)
             .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
             .ToListAsync();
 
@@ -105,23 +105,11 @@ public class FriendsController : ControllerBase
         {
             RequesterId = userId,
             AddresseeId = targetUserId,
-            Status      = 0,
+            Status      = (Synewave.API.Models.FriendshipStatus)0,
             CreatedAt   = DateTime.UtcNow,
             UpdatedAt   = DateTime.UtcNow
         };
         _db.Friendships.Add(friendship);
-
-        // Notifikácia
-        var notif = new Synewave.API.Models.Notification
-        {
-            UserId    = targetUserId,
-            Type      = "friend_request",
-            Message   = "Ti poslal/a žiadosť o priateľstvo.",
-            ActionUrl = $"/friends/{friendship.Id}",
-            IsRead    = false,
-            CreatedAt = DateTime.UtcNow
-        };
-        _db.Notifications.Add(notif);
         await _db.SaveChangesAsync();
 
         return Ok(new { success = true, data = "Žiadosť odoslaná." });
@@ -140,7 +128,7 @@ public class FriendsController : ControllerBase
         if (friendship.AddresseeId != userId)
             return Forbid();
 
-        friendship.Status    = dto.Accepted ? 1 : 2;
+        friendship.Status = dto.Accepted ? (Synewave.API.Models.FriendshipStatus)1 : (Synewave.API.Models.FriendshipStatus)2;
         friendship.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
@@ -154,7 +142,7 @@ public class FriendsController : ControllerBase
         var userId = UserId;
         var friendship = await _db.Friendships.FirstOrDefaultAsync(f =>
             ((f.RequesterId == userId && f.AddresseeId == friendId) ||
-             (f.RequesterId == friendId && f.AddresseeId == userId)) && f.Status == 1);
+             (f.RequesterId == friendId && f.AddresseeId == userId)) && (int)f.Status == 1);
 
         if (friendship == null)
             return NotFound(new { error = "Priateľstvo nenájdené." });
@@ -177,7 +165,7 @@ public class FriendsController : ControllerBase
     {
         var userId = UserId;
         var pending = await _db.Friendships
-            .Where(f => f.AddresseeId == userId && f.Status == 0)
+            .Where(f => f.AddresseeId == userId && (int)f.Status == 0)
             .ToListAsync();
 
         var result = new List<object>();
