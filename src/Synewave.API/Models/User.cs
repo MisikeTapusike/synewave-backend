@@ -17,6 +17,10 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastActiveAt { get; set; } = DateTime.UtcNow;
 
+    // Aktuálne prehrávanie (pre feed)
+    public string? CurrentSong { get; set; }
+    public string? CurrentArtist { get; set; }
+
     // Navigation
     public ICollection<Friendship> SentFriendRequests { get; set; } = new List<Friendship>();
     public ICollection<Friendship> ReceivedFriendRequests { get; set; } = new List<Friendship>();
